@@ -6,6 +6,7 @@ import com.philips.lighting.hue.sdk.PHHueSDK;
 import com.philips.lighting.hue.sdk.PHMessageType;
 import com.philips.lighting.hue.sdk.PHSDKListener;
 import com.philips.lighting.hue.sdk.heartbeat.PHHeartbeatManager;
+import com.philips.lighting.hue.sdk.utilities.PHUtilities;
 import com.philips.lighting.model.*;
 import io.habets.javautils.Bus;
 import nl.sjtek.control.data.ampq.events.LightEvent;
@@ -50,6 +51,11 @@ public class Hue {
         if (roomId == null) return;
         System.out.println(event.toString());
         PHLightState state = new PHLightState();
+        if (event.isEnabled() && event.useRgb()) {
+            float xy[] = PHUtilities.calculateXYFromRGB(event.getR(), event.getG(), event.getB(), null);
+            state.setX(xy[0]);
+            state.setY(xy[1]);
+        }
         state.setOn(event.isEnabled());
         sdk.getSelectedBridge().setLightStateForGroup(roomId, state);
     }

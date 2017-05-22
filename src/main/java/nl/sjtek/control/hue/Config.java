@@ -73,7 +73,7 @@ public class Config {
         for (Map.Entry<String, String> entry : lights.entrySet()) {
             if (entry.getValue().equals(room)) return Integer.valueOf(entry.getKey());
         }
-
+        System.err.println("Room not found: " + room);
         return -1;
     }
 }

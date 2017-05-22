@@ -76,8 +76,10 @@ public class Hue {
                             if (light.getLastKnownLightState().isOn()) isOn = true;
                         }
                         int sjtekLightId = Config.getInstance().getSjtekLightId(group.getIdentifier());
-                        lightStates.put(sjtekLightId, isOn);
-                        Bus.post(new LightStateEvent(sjtekLightId, isOn));
+                        if (sjtekLightId != -1) {
+                            lightStates.put(sjtekLightId, isOn);
+                            Bus.post(new LightStateEvent(sjtekLightId, isOn));
+                        }
                     }
                 }
 

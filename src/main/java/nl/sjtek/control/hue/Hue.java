@@ -1,6 +1,7 @@
 package nl.sjtek.control.hue;
 
 import com.google.common.eventbus.Subscribe;
+import com.philips.lighting.hue.listener.PHLightListener;
 import com.philips.lighting.hue.sdk.PHAccessPoint;
 import com.philips.lighting.hue.sdk.PHHueSDK;
 import com.philips.lighting.hue.sdk.PHMessageType;
@@ -9,8 +10,8 @@ import com.philips.lighting.hue.sdk.heartbeat.PHHeartbeatManager;
 import com.philips.lighting.hue.sdk.utilities.PHUtilities;
 import com.philips.lighting.model.*;
 import io.habets.javautils.Bus;
-import nl.sjtek.control.data.ampq.events.LightEvent;
-import nl.sjtek.control.data.ampq.events.LightStateEvent;
+import nl.sjtek.control.data.amqp.SwitchEvent;
+import nl.sjtek.control.data.amqp.SwitchStateEvent;
 import nl.sjtek.control.hue.events.HueConnectedEvent;
 import nl.sjtek.control.hue.events.ShutdownEvent;
 
@@ -46,18 +47,49 @@ public class Hue {
     }
 
     @Subscribe
-    public void onLightEvent(LightEvent event) {
+    public void onLightEvent(SwitchEvent event) {
         String roomId = Config.getInstance().getRoom(event.getId());
         if (roomId == null) return;
         System.out.println(event.toString());
         PHLightState state = new PHLightState();
-        if (event.isEnabled() && event.useRgb()) {
+        if (event.getState() && event.getUseRgb()) {
             float xy[] = PHUtilities.calculateXYFromRGB(event.getR(), event.getG(), event.getB(), null);
             state.setX(xy[0]);
             state.setY(xy[1]);
         }
-        state.setOn(event.isEnabled());
-        sdk.getSelectedBridge().setLightStateForGroup(roomId, state);
+        state.setOn(event.getState());
+
+        sdk.getSelectedBridge().updateLightState(roomId, state, new PHLightListener() {
+            @Override
+            public void onReceivingLightDetails(PHLight phLight) {
+
+            }
+
+            @Override
+            public void onReceivingLights(List<PHBridgeResource> list) {
+
+            }
+
+            @Override
+            public void onSearchComplete() {
+
+            }
+
+            @Override
+            public void onSuccess() {
+
+            }
+
+            @Override
+            public void onError(int i, String s) {
+                System.err.println("Lamp error " + s);
+            }
+
+            @Override
+            public void onStateUpdate(Map<String, String> map, List<PHHueError> list) {
+
+            }
+        });
     }
 
     private class SDKListener implements PHSDKListener {
@@ -67,22 +99,17 @@ public class Hue {
             if (list.contains(PHMessageType.LIGHTS_CACHE_UPDATED)) {
                 PHBridgeResourcesCache cache = phBridge.getResourceCache();
                 synchronized (SYNC_STATE) {
-                    long start = System.currentTimeMillis();
                     lightStates.clear();
-                    for (PHGroup group : cache.getAllGroups()) {
-                        boolean isOn = false;
-                        for (String lightId : group.getLightIdentifiers()) {
-                            PHLight light = cache.getLights().get(lightId);
-                            if (light.getLastKnownLightState().isOn()) isOn = true;
-                        }
-                        int sjtekLightId = Config.getInstance().getSjtekLightId(group.getIdentifier());
+                    for (PHLight light : cache.getAllLights()) {
+                        boolean enabled = light.getLastKnownLightState().isOn();
+                        String lightId = light.getIdentifier();
+                        int sjtekLightId = Config.getInstance().getSjtekLightId(lightId);
                         if (sjtekLightId != -1) {
-                            lightStates.put(sjtekLightId, isOn);
-                            Bus.post(new LightStateEvent(sjtekLightId, isOn));
+                            lightStates.put(sjtekLightId, enabled);
+                            Bus.post(new SwitchStateEvent(sjtekLightId, enabled));
                         }
                     }
                 }
-
             }
         }
 
@@ -107,7 +134,7 @@ public class Hue {
 
         @Override
         public void onError(int i, String s) {
-
+            System.err.println("Cache error " + s);
         }
 
         @Override

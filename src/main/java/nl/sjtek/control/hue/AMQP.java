@@ -4,8 +4,8 @@ import com.google.common.eventbus.Subscribe;
 import com.rabbitmq.client.*;
 import io.habets.javautils.Bus;
 import io.habets.javautils.PingThread;
-import nl.sjtek.control.data.ampq.events.LightEvent;
-import nl.sjtek.control.data.ampq.events.LightStateEvent;
+import nl.sjtek.control.data.amqp.SwitchEvent;
+import nl.sjtek.control.data.amqp.SwitchStateEvent;
 import nl.sjtek.control.hue.events.ShutdownEvent;
 
 import java.io.IOException;
@@ -63,10 +63,10 @@ public class AMQP {
     }
 
     @Subscribe
-    public void onStateUpdateEvent(LightStateEvent event) {
+    public void onStateUpdateEvent(SwitchStateEvent event) {
         try {
             if (channelStates != null)
-                channelStates.basicPublish(EXCHANGE_LIGHTS_STATE, "", null, event.toString().getBytes());
+                channelStates.basicPublish(EXCHANGE_LIGHTS_STATE, "", null, event.toMessage());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -85,7 +85,8 @@ public class AMQP {
 
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, com.rabbitmq.client.AMQP.BasicProperties properties, byte[] body) throws IOException {
-            LightEvent event = new LightEvent(new String(body));
+            SwitchEvent event = SwitchEvent.Companion.fromMessage(new String(body));
+            if (event == null) return;
             Bus.post(event);
         }
     }

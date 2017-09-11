@@ -101,7 +101,7 @@ public class Hue {
                 synchronized (SYNC_STATE) {
                     lightStates.clear();
                     for (PHLight light : cache.getAllLights()) {
-                        boolean enabled = light.getLastKnownLightState().isOn();
+                        boolean enabled = light.getLastKnownLightState().isOn() && light.getLastKnownLightState().isReachable();
                         String lightId = light.getIdentifier();
                         int sjtekLightId = Config.getInstance().getSjtekLightId(lightId);
                         if (sjtekLightId != -1) {
